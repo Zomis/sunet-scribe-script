@@ -1,6 +1,3 @@
-// Turn on follow-audio.
-// (Uncertain words can also be detected and exported)
-
 function download(data) {
     let element = document.createElement("a");
     element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(data));
@@ -11,26 +8,81 @@ function download(data) {
     document.body.removeChild(element);
 }
 
-function getSpanData(span) {
-    return {
+function enableFollowAudio() {
+    Array.prototype.slice.call(document.querySelectorAll(".q-toggle[aria-checked='false'] .q-toggle__label"))
+        .filter(e => e.innerHTML.indexOf("Follow audio") >= 0)
+        .forEach(e => e.click());
+}
+function highlightWordsWithoutTime() {
+    let cells = getAllCellData(true);
+    for (let cell of cells) {
+        for (let span of cell.spans) {
+            if (span.e == null && span.c.trim().length > 0) span.el.style.backgroundColor = "yellow";
+        }
+    }
+}
+
+function highlightDelayedWords(minDelay) {
+    let cells = getAllCellData(true);
+    for (let cell of cells) {
+        let prev = null;
+        for (let i = 0; i < cell.spans.length; i++) {
+            let span = cell.spans[i];
+            if (prev != null && prev.e != null) {
+                let prevEnd = parseFloat(prev.e);
+                let currStart = parseFloat(span.s);
+                if (prevEnd + minDelay < currStart) {
+                    span.el.style.backgroundColor = "red";
+                }
+            }
+            if (span.e != null) prev = span;
+        }
+    }
+}
+
+function getSpanData(span, includeElement) {
+    let obj = {
         review: span.classList.contains("review-word"),
         s: span.getAttribute("data-s"),
         e: span.getAttribute("data-e"),
         c: span.innerHTML,
     }
+    if (includeElement) obj.el = span;
+    return obj;
 }
 
-function getCellData(cell) {
+function getCellData(cell, includeElement) {
     let start = cell.querySelector("div.transcript-time input:nth-child(1)").value;
     let end = cell.querySelector("div.transcript-time input:nth-last-child(1)").value;
     let spans = Array.prototype.slice.call(cell.querySelectorAll(".transcript-text span"));
-    let spanData = spans.map(span => getSpanData(span));
-    return { start, end, spanData };
+    let spanData = spans.map(span => getSpanData(span, includeElement));
+    return { start, end, spans: spanData };
 }
 
-cells = Array.prototype.slice.call(document.querySelectorAll("div.transcript-cell"));
-cellData = cells.map(cell => getCellData(cell));
-download(JSON.stringify(cellData));
+function addMenu() {
+    let div = document.createElement("div");
+    let button = document.createElement("button");
+    button.appendChild(document.createTextNode("Test Button"));
+    button.classList.add("q-btn");
+    button.onclick = function() { window.alert("Test"); }
+    div.appendChild(button);
+    document.querySelector(".transcript-editor").insertAdjacentElement("afterbegin", div);
+}
+
+function getAllCellData(includeElement) {
+    let cells = Array.prototype.slice.call(document.querySelectorAll("div.transcript-cell"));
+    let cellData = cells.map(cell => getCellData(cell, includeElement));
+    return cellData;
+}
+
+function downloadAllData() {
+    download(JSON.stringify(cellData));
+}
+
+enableFollowAudio();
+highlightWordsWithoutTime();
+highlightDelayedWords(1.5);
+addMenu();
 
 /*
 data-edit
@@ -38,4 +90,3 @@ data-s
 data-e
 data-review
 */
-

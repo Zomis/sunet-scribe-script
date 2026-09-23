@@ -61,11 +61,31 @@ function getCellData(cell, includeElement) {
 
 function addMenu() {
     let div = document.createElement("div");
-    let button = document.createElement("button");
-    button.appendChild(document.createTextNode("Test Button"));
-    button.classList.add("q-btn");
-    button.onclick = function() { window.alert("Test"); }
-    div.appendChild(button);
+    let info = document.createElement("span");
+    info.appendChild(document.createTextNode("Yellow words indicate lack of timing information. Red words indicate a pause before them."));
+    let buttons = [
+        {
+            title: "Highlight words",
+            action: () => {
+                highlightDelayedWords(1.5);
+                highlightWordsWithoutTime();
+            },
+        },
+        {
+            title: "Download all",
+            action: () => {
+                downloadAllData();
+            }
+        }
+    ];
+    for (let action of buttons) {
+        let button = document.createElement("button");
+        button.appendChild(document.createTextNode(action.title));
+        button.classList.add("q-btn");
+        button.onclick = action.action;
+        div.appendChild(button);
+    }
+    div.appendChild(info);
     document.querySelector(".transcript-editor").insertAdjacentElement("afterbegin", div);
 }
 
@@ -76,17 +96,8 @@ function getAllCellData(includeElement) {
 }
 
 function downloadAllData() {
-    download(JSON.stringify(cellData));
+    download(JSON.stringify(getAllCellData(false)));
 }
 
 enableFollowAudio();
-highlightWordsWithoutTime();
-highlightDelayedWords(1.5);
 addMenu();
-
-/*
-data-edit
-data-s
-data-e
-data-review
-*/

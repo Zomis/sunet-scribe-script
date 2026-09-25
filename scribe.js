@@ -99,30 +99,51 @@ function getCellData(cell, includeElement) {
 
 function addMenu() {
     let div = document.createElement("div");
-    let info = document.createElement("span");
-    info.appendChild(document.createTextNode("Yellow words indicate lack of timing information. Red words indicate a pause before them."));
+    let labelDiv = document.createElement("div");
+    let inputDiv = document.createElement("div");
+    let buttonDiv = document.createElement("div");
+    let input = document.createElement("input");
+    input.setAttribute("type", "number");
+    input.setAttribute("min", 0);
+    input.setAttribute("max", 2147483647);
+    input.setAttribute("value", 1500);
+    let infos = [
+        "Yellow words indicate lack of timing information.",
+        "Red words indicate a pause of at least x milliseconds before them.",
+        "Highlight constant delay highlights a word every x milliseconds.",
+        "Use the number input above to set the value for x",
+    ];
+    for (str of infos) {
+        let info = document.createElement("p");
+        info.appendChild(document.createTextNode(str));
+        labelDiv.appendChild(info);
+    }
+
+    inputDiv.appendChild(input);
     let buttons = [
         {
             title: "Clear highlights",
             action: () => clearHighlights()
         },
         {
-            title: "Highlight words",
+            title: "Highlight words with delay of x milliseconds before them",
             action: () => {
+                let delay = parseInt(input.value, 10);
                 clearHighlights();
-                highlightDelayedWords(1.5, "red");
+                highlightDelayedWords(delay / 1000, "red");
                 highlightWordsWithoutTime();
             },
         },
         {
-            title: "Highlight constant delay",
+            title: "Highlight constant delay of x milliseconds",
             action: () => {
+                let delay = parseInt(input.value, 10);
                 clearHighlights();
-                highlightEvery(3, "#00ffff");
+                highlightEvery(delay / 1000, "#00ffff");
             },
         },
         {
-            title: "Download all",
+            title: "Download debug information",
             action: () => {
                 downloadAllData();
             }
@@ -133,9 +154,11 @@ function addMenu() {
         button.appendChild(document.createTextNode(action.title));
         button.classList.add("q-btn");
         button.onclick = action.action;
-        div.appendChild(button);
+        buttonDiv.appendChild(button);
     }
-    div.appendChild(info);
+    div.appendChild(labelDiv);
+    div.appendChild(inputDiv);
+    div.appendChild(buttonDiv);
     document.querySelector(".transcript-editor").insertAdjacentElement("afterbegin", div);
 }
 

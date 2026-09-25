@@ -17,12 +17,27 @@ function highlightWordsWithoutTime() {
     let cells = getAllCellData(true);
     for (let cell of cells) {
         for (let span of cell.spans) {
-            if (span.e == null && span.c.trim().length > 0) span.el.style.backgroundColor = "yellow";
+            if (span.e == null && span.c.trim().length > 0) highlight(span, "yellow");
         }
     }
 }
 
-function highlightDelayedWords(minDelay) {
+function clearHighlights() {
+    let cells = getAllCellData(true);
+    for (let cell of cells) {
+        for (let span of cell.spans) {
+            span.el.style.backgroundColor = "";
+        }
+    }
+}
+
+function highlight(span, color) {
+    if (span.el.style.backgroundColor) {
+        span.el.style.backgroundColor = "#ff00ff";
+    } else span.el.style.backgroundColor = color;
+}
+
+function highlightDelayedWords(minDelay, color) {
     let cells = getAllCellData(true);
     for (let cell of cells) {
         let prev = null;
@@ -32,10 +47,33 @@ function highlightDelayedWords(minDelay) {
                 let prevEnd = parseFloat(prev.e);
                 let currStart = parseFloat(span.s);
                 if (prevEnd + minDelay < currStart) {
-                    span.el.style.backgroundColor = "red";
+                    highlight(span, color);
                 }
             }
             if (span.e != null) prev = span;
+        }
+    }
+}
+
+function highlightEvery(delay, color) {
+    let cells = getAllCellData(true);
+    for (let cell of cells) {
+        let first = null;
+        let nextMark = delay;
+        for (let i = 0; i < cell.spans.length; i++) {
+            let span = cell.spans[i];
+            if (first == null) {
+                first = span;
+                nextMark = parseFloat(first.s) + delay;
+            } else {
+                let currStart = parseFloat(span.s);
+                if (currStart >= nextMark) {
+                    highlight(span, color);
+                    while (nextMark < currStart) {
+                        nextMark += delay;
+                    }
+                }
+            }
         }
     }
 }
@@ -65,10 +103,22 @@ function addMenu() {
     info.appendChild(document.createTextNode("Yellow words indicate lack of timing information. Red words indicate a pause before them."));
     let buttons = [
         {
+            title: "Clear highlights",
+            action: () => clearHighlights()
+        },
+        {
             title: "Highlight words",
             action: () => {
-                highlightDelayedWords(1.5);
+                clearHighlights();
+                highlightDelayedWords(1.5, "red");
                 highlightWordsWithoutTime();
+            },
+        },
+        {
+            title: "Highlight constant delay",
+            action: () => {
+                clearHighlights();
+                highlightEvery(3, "#00ffff");
             },
         },
         {

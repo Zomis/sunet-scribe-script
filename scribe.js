@@ -1,7 +1,7 @@
-function download(data) {
+function download(filename, data) {
     let element = document.createElement("a");
     element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(data));
-    element.setAttribute("download", "sunet-scribe.txt");
+    element.setAttribute("download", filename);
     element.style.display = "none";
     document.body.appendChild(element);
     element.click();
@@ -78,6 +78,76 @@ function highlightEvery(delay, color) {
     }
 }
 
+function filenameFromURL() {
+    return new URLSearchParams(window.location.href).get("filename");
+}
+
+function person() {
+    let filename = filenameFromURL();
+    for (let p of ['A', 'B', 'C']) {
+        if (filename.indexOf(`_${p}_`) >= 0) return p;
+    }
+    return "UNKNOWN";
+}
+
+async function syncTime() {
+    let files = fileInput.files;
+    if (!files?.length) {
+        alert("No files selected, cannot adjust syncTime");
+        return null;
+    }
+    let text = await files[0].text();
+
+    let parser = new DOMParser();
+    let xml = parser.parseFromString(text, "text/xml");
+    let elements = xml.getElementsByTagName("MEDIA_DESCRIPTOR");
+    let filename = filenameFromURL();
+    for (let el of elements) {
+        let rel = el.getAttribute("RELATIVE_MEDIA_URL");
+        let time = el.getAttribute("TIME_ORIGIN");
+        console.log(rel, time);
+        if (rel.indexOf(filename) >= 0) {
+            return parseInt(time, 10);
+        }
+    }
+    return null;
+}
+
+function millisecondsToTimestamp(inputMs) {
+    let seconds = Math.floor(inputMs / 1000);
+    let h = Math.floor(seconds / 3600);
+    let m = Math.floor(seconds / 60) % 60;
+    let s = Math.floor(seconds) % 60;
+    let ms = Math.floor(inputMs) % 1000;
+    console.log(inputMs, seconds, '=>', h, m, s, ms);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
+}
+
+function adjustTime(timestamp, syncMs) {
+    let h = parseInt(timestamp.substring(0, 2), 10);
+    let m = parseInt(timestamp.substring(3, 5), 10);
+    let s = parseInt(timestamp.substring(6, 8), 10);
+    let ms = parseInt(timestamp.substring(9), 10);
+    let total = (h * 3600 + m * 60 + s) * 1000 + ms;
+    console.log("Adjust time", timestamp, h, m, s, ms, total, "++", syncMs);
+    return millisecondsToTimestamp(total + syncMs);
+}
+
+async function createCsv() {
+    let syncMs = await syncTime();
+    console.log("Sync result", syncMs);
+    let cells = getAllCellData(false);
+    let data = "Annotation,Tier,Begin Time,End Time\n";
+    let tier = 'transcript_' + person();
+    for (let cell of cells) {
+        let text = cell.spans.map(s => s.c).join('');
+        let beginTime = adjustTime(cell.start, syncMs);
+        let endTime = adjustTime(cell.end, syncMs);
+        data += `"${text}",${tier},${beginTime},${endTime}\n`;
+    }
+    return data;
+}
+
 function getSpanData(span, includeElement) {
     let obj = {
         review: span.classList.contains("review-word"),
@@ -97,12 +167,16 @@ function getCellData(cell, includeElement) {
     return { start, end, spans: spanData };
 }
 
+let fileInput = document.createElement("input");
 function addMenu() {
     let div = document.createElement("div");
     let labelDiv = document.createElement("div");
     let inputDiv = document.createElement("div");
     let buttonDiv = document.createElement("div");
     let input = document.createElement("input");
+    fileInput.setAttribute("type", "file");
+    div.append(fileInput);
+
     input.setAttribute("type", "number");
     input.setAttribute("min", 0);
     input.setAttribute("max", 2147483647);
@@ -143,9 +217,17 @@ function addMenu() {
             },
         },
         {
+            title: "Download CSV for ELAN",
+            action: () => {
+                createCsv().then((result) => {
+                    download("sunet-scribe-csv-for-elan.csv", result);
+                });
+            },
+        },
+        {
             title: "Download debug information",
             action: () => {
-                downloadAllData();
+                download("sunet-scribe-debug.txt", JSON.stringify(getAllCellData(false)));
             }
         }
     ];
@@ -166,10 +248,6 @@ function getAllCellData(includeElement) {
     let cells = Array.prototype.slice.call(document.querySelectorAll("div.transcript-cell"));
     let cellData = cells.map(cell => getCellData(cell, includeElement));
     return cellData;
-}
-
-function downloadAllData() {
-    download(JSON.stringify(getAllCellData(false)));
 }
 
 enableFollowAudio();

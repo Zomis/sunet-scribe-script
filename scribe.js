@@ -133,17 +133,18 @@ function adjustTime(timestamp, syncMs) {
     return millisecondsToTimestamp(total + syncMs);
 }
 
+const CSV_SEPARATOR = ";";
 async function createCsv() {
     let syncMs = await syncTime();
     console.log("Sync result", syncMs);
     let cells = getAllCellData(false);
-    let data = "Annotation,Tier,Begin Time,End Time\n";
+    let data = ["Annotation", "Tier", "Begin Time", "End Time"].join(CSV_SEPARATOR) + "\n";
     let tier = 'transcript_' + person();
     for (let cell of cells) {
         let text = cell.spans.map(s => s.c).join('');
         let beginTime = adjustTime(cell.start, syncMs);
         let endTime = adjustTime(cell.end, syncMs);
-        data += `"${text}",${tier},${beginTime},${endTime}\n`;
+        data += [text, tier, beginTime, endTime].join(CSV_SEPARATOR) + "\n";
     }
     return data;
 }
